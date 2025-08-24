@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Football Stock Alarm</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .font-sans { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+        .select-container {
+            position: relative;
+        }
+        .select-container::after {
+            content: '▼';
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #9ca3af;
+        }
+        .select-container select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding-right: 2.5rem;
+        }
+        /* Custom styling to ensure inputs match the dark theme */
+        input[type="text"], input[type="number"], input[type="tel"], select {
+            background-color: #1f2937 !important;
+            color: #fff !important;
+            border-color: #4b5563 !important;
+        }
+        input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, select:focus {
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: 2px !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-900 text-white p-4 font-sans">
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center my-8">
+            <h1 class="text-5xl font-extrabold text-blue-400">Fantasy Stock Alarm</h1>
+            <p class="text-xl text-gray-300 mt-2">Your customizable fantasy football value tracker. Monitor your sleepers, find gems before anyone else—all without having to box score watch. The data comes to you!</p>
+        </header>
+
+        <!-- Message Box -->
+        <div id="messageBox" class="bg-blue-800 text-white p-4 rounded-xl shadow-lg my-6 whitespace-pre-wrap hidden"></div>
+
+        <main class="grid md:grid-cols-2 gap-8">
+            <!-- Alert Form -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-4 text-blue-400">Set a New Alert</h2>
+                <form id="alertForm">
+                    <div class="mb-4">
+                        <label for="searchTerm" class="block text-gray-400 mb-2">Search for a Player</label>
+                        <input
+                            type="text"
+                            id="searchTerm"
+                            placeholder="e.g., Patrick Mahomes"
+                            class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p id="searchMessage" class="text-sm text-gray-400 mt-2 hidden">Searching in the player dropdown...</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="playerSelect" class="block text-gray-400 mb-2">Select a Player</label>
+                        <div class="select-container">
+                            <select
+                                id="playerSelect"
+                                class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            >
+                                <option value="all-players" selected>All Players</option>
+                                <option value="" disabled>Choose a player...</option>
+                            </select>
+                        </div>
+                        <p id="playerCountMessage" class="text-sm text-gray-400 mt-2 hidden">Showing first 50 results. Keep typing to narrow your search.</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="statSelect" class="block text-gray-400 mb-2">Select a Stat</label>
+                        <div class="select-container">
+                            <select
+                                id="statSelect"
+                                class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <optgroup label="General">
+                                    <option value="snap_pct">Snap Count Percentage</option>
+                                    <option value="target_share">Target Share Percentage</option>
+                                    <option value="trend_add">Most Added</option>
+                                    <option value="trend_drop">Most Dropped</option>
+                                    <option value="injury_status">Injury Status</option>
+                                </optgroup>
+                                <optgroup label="Quarterback">
+                                    <option value="passing_yds">Passing Yards</option>
+                                    <option value="passing_tds">Passing Touchdowns</option>
+                                    <option value="interceptions">Interceptions</option>
+                                </optgroup>
+                                <optgroup label="Running Back">
+                                    <option value="rushing_att">Rushing Attempts</option>
+                                    <option value="rushing_yds">Rushing Yards</option>
+                                    <option value="rushing_tds">Rushing Touchdowns</option>
+                                    <option value="ypc">Yards Per Carry (YPC)</option>
+                                </optgroup>
+                                <optgroup label="Wide Receiver & Tight End">
+                                    <option value="receptions">Receptions</option>
+                                    <option value="receiving_yds">Receiving Yards</option>
+                                    <option value="receiving_tds">Receiving Touchdowns</option>
+                                </optgroup>
+                                <optgroup label="Kicker">
+                                    <option value="fg_made">FG Made</option>
+                                    <option value="extra_pts_made">Extra Points Made</option>
+                                </optgroup>
+                                <optgroup label="Defensive Stats">
+                                    <option value="solo_tkl">Solo Tackles</option>
+                                    <option value="ast_tkl">Assisted Tackles</option>
+                                    <option value="sacks">Sacks</option>
+                                    <option value="int">Interceptions</option>
+                                    <option value="fumbles_forced">Forced Fumbles</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="alertTypeSection" class="mb-4">
+                        <label for="alertTypeSelect" class="block text-gray-400 mb-2">Alert Type</label>
+                        <div class="select-container">
+                            <select
+                                id="alertTypeSelect"
+                                class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="change">Change</option>
+                                <option value="target">Target</option>
+                                <option value="recurring" selected>Recurring</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="alertTypeDisplay" class="mb-4 hidden">
+                         <label class="block text-gray-400 mb-2">Alert Type</label>
+                         <div class="w-full p-3 bg-gray-700 text-white rounded-lg"></div>
+                    </div>
+
+                    <div id="changeDirectionSection" class="mb-4 hidden">
+                        <label for="changeDirectionSelect" class="block text-gray-400 mb-2">Change Direction</label>
+                        <div class="select-container">
+                            <select
+                                id="changeDirectionSelect"
+                                class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="increase">Increase</option>
+                                <option value="decrease">Decrease</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="changeMethodSection" class="mb-4 hidden">
+                        <label for="changeMethodSelect" class="block text-gray-400 mb-2">Change Value Type</label>
+                        <div class="select-container">
+                            <select
+                                id="changeMethodSelect"
+                                class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="percent">Percentage (%)</option>
+                                <option value="integer">Integer (#)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="recurringTimeframeSection" class="mb-4">
+                        <label for="recurringTimeframeSelect" class="block text-gray-400 mb-2">Recurring Timeframe</label>
+                        <div class="select-container">
+                            <select
+                                id="recurringTimeframeSelect"
+                                class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="weekly">Weekly</option>
+                                <option value="yearly">Yearly</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="trendTypeSection" class="mb-4 hidden">
+                        <label for="trendTypeSelect" class="block text-gray-400 mb-2">Trend Type</label>
+                        <div class="select-container">
+                            <select
+                                id="trendTypeSelect"
+                                class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="add">Most Added</option>
+                                <option value="drop">Most Dropped</option>
+                            </select>
+                        </div>
+                    </div>
+
+
+                    <div id="thresholdSection" class="mb-4 hidden">
+                        <label for="thresholdInput" class="block text-gray-400 mb-2">Minimum Change</label>
+                        <input
+                            type="number"
+                            id="thresholdInput"
+                            value="10"
+                            class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            min="0"
+                            required
+                        />
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="phoneNumberInput" class="block text-gray-400 mb-2">Phone Number (for SMS alerts)</label>
+                        <input
+                            type="tel"
+                            id="phoneNumberInput"
+                            placeholder="e.g., +15551234567"
+                            class="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-xl transition-colors duration-200"
+                    >
+                        Set Alert
+                    </button>
+                </form>
+            </div>
+
+            <!-- Active Alerts List -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-4 text-blue-400">Active Alerts (<span id="alertCount">0</span>)</h2>
+                <div id="alertsContainer" class="space-y-4">
+                    <p id="noAlertsMessage" class="text-gray-400">No alerts set yet.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Application State
+        let db;
+        let auth;
+        let userId = null;
+        let allPlayers = {};
+        let activeAlerts = [];
+        let isAuthReady = false;
+        let editingAlertId = null;
+
+        // DOM Elements
+        let messageBox, searchTermInput, playerSelect, playerCountMessage, statSelect, alertTypeSelect, alertTypeDisplay, changeDirectionSelect, changeMethodSelect, recurringTimeframeSelect, trendTypeSelect, thresholdInput, phoneNumberInput, alertForm, alertsContainer, noAlertsMessage, alertCountSpan, setAlertButton;
+        let changeDirectionSection, changeMethodSection, thresholdSection, recurringTimeframeSection, trendTypeSection, thresholdLabel, searchMessage;
+        
+        // This object holds the initial state of the form to reset to a known good state
+        const initialFormState = {
+            statSelect: 'snap_pct',
+            alertTypeSelect: 'recurring',
+            changeDirectionSelect: 'increase',
+            changeMethodSelect: 'percent',
+            recurringTimeframeSelect: 'weekly',
+            thresholdInput: '10'
+        };
+
+
+        // Helper function to display messages
+        const displayMessage = (msg) => {
+            messageBox.textContent = msg;
+            messageBox.classList.remove('hidden');
+        };
+
+        // Renders the list of active alerts
+        const renderAlerts = () => {
+            alertsContainer.innerHTML = '';
+            if (activeAlerts.length === 0) {
+                noAlertsMessage.classList.remove('hidden');
+                alertsContainer.appendChild(noAlertsMessage);
+            } else {
+                noAlertsMessage.classList.add('hidden');
+                activeAlerts.forEach(alert => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'bg-gray-700 p-4 rounded-lg flex justify-between items-center';
+                    const playerNameDisplay = alert.playerId === 'all-players' ? 'All Players' : `${alert.playerName} (${alert.team || 'FA'})`;
+                    
+                    let alertDetails = '';
+                    if (alert.alertType === 'change') {
+                        const changeDirectionDisplay = alert.changeDirection === 'increase' ? 'Increase' : 'Decrease';
+                        const changeMethodDisplay = alert.changeMethod === 'percent' ? '%' : '#';
+                        alertDetails = `
+                            Alert: <span class="font-mono">${changeDirectionDisplay}</span> by ${alert.threshold}<span class="font-mono">${changeMethodDisplay}</span> in <span class="font-mono">${alert.stat.replace('_', ' ')}</span>
+                        `;
+                    } else if (alert.alertType === 'target') {
+                        alertDetails = `
+                            Alert: target of ${alert.threshold} in <span class="font-mono">${alert.stat.replace('_', ' ')}</span>
+                        `;
+                    } else if (alert.alertType === 'recurring') {
+                        const recurringTimeframeDisplay = alert.recurringTimeframe === 'weekly' ? 'Weekly' : 'Yearly';
+                        alertDetails = `
+                            Alert: <span class="font-mono">Recurring</span> (${recurringTimeframeDisplay}) updates for <span class="font-mono">${alert.stat.replace('_', ' ')}</span>
+                        `;
+                    } else if (alert.stat === 'trend_add') {
+                        alertDetails = `
+                            Alert: <span class="font-mono">Most Added</span>
+                        `;
+                    } else if (alert.stat === 'trend_drop') {
+                        alertDetails = `
+                            Alert: <span class="font-mono">Most Dropped</span>
+                        `;
+                    } else if (alert.stat === 'injury_status') {
+                        alertDetails = `
+                            Alert: <span class="font-mono">Injury Status</span> change
+                        `;
+                    }
+                    
+                    alertDiv.innerHTML = `
+                        <div class="flex-1">
+                            <p class="font-semibold text-lg">${playerNameDisplay}</p>
+                            <p class="text-gray-400 text-sm">
+                                ${alertDetails}
+                            </p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 edit-btn" data-id="${alert.id}">
+                                Edit
+                            </button>
+                            <button class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 delete-btn" data-id="${alert.id}">
+                                Delete
+                            </button>
+                        </div>
+                    `;
+                    alertsContainer.appendChild(alertDiv);
+                });
+            }
+            alertCountSpan.textContent = activeAlerts.length;
+        };
+        
+        // Function to update form fields based on alert type
+        const updateFormFields = () => {
+            const statType = statSelect.value;
+            const isAllPlayers = playerSelect.value === 'all-players';
+            
+            const isTrendStat = statType === 'trend_add' || statType === 'trend_drop';
+            const isInjuryStat = statType === 'injury_status';
+
+            // Handle special stat types that don't need a normal alert type menu
+            if (isTrendStat || isInjuryStat) {
+                alertTypeSection.classList.add('hidden');
+                alertTypeDisplay.classList.remove('hidden');
+                
+                // Hide all other alert configuration sections
+                changeDirectionSection.classList.add('hidden');
+                changeMethodSection.classList.add('hidden');
+                thresholdSection.classList.add('hidden');
+                recurringTimeframeSection.classList.add('hidden');
+
+                // Set the display text based on the special stat
+                if (isTrendStat) {
+                    alertTypeDisplay.querySelector('div').textContent = 'Player Trend';
+                } else if (isInjuryStat) {
+                    alertTypeDisplay.querySelector('div').textContent = 'Change';
+                }
+            } else {
+                // Show normal alert type menu
+                alertTypeSection.classList.remove('hidden');
+                alertTypeDisplay.classList.add('hidden');
+                
+                const alertType = alertTypeSelect.value;
+                if (alertType === 'change') {
+                    changeDirectionSection.classList.remove('hidden');
+                    changeMethodSection.classList.remove('hidden');
+                    thresholdSection.classList.remove('hidden');
+                    recurringTimeframeSection.classList.add('hidden');
+                    thresholdInput.setAttribute('type', 'number');
+                    thresholdLabel.textContent = 'Minimum Change';
+                } else if (alertType === 'target') {
+                    changeDirectionSection.classList.add('hidden');
+                    changeMethodSection.classList.add('hidden');
+                    thresholdSection.classList.remove('hidden');
+                    recurringTimeframeSection.classList.add('hidden');
+                    thresholdInput.setAttribute('type', 'number');
+                    thresholdLabel.textContent = 'Target Value';
+                } else if (alertType === 'recurring') {
+                    changeDirectionSection.classList.add('hidden');
+                    changeMethodSection.classList.add('hidden');
+                    thresholdSection.classList.add('hidden');
+                    recurringTimeframeSection.classList.remove('hidden');
+                }
+            }
+
+            // Handle special cases for All Players
+            const injuryStatusOption = statSelect.querySelector('option[value="injury_status"]');
+            const trendAddOption = statSelect.querySelector('option[value="trend_add"]');
+            const trendDropOption = statSelect.querySelector('option[value="trend_drop"]');
+            
+            if (injuryStatusOption) {
+                injuryStatusOption.disabled = isAllPlayers;
+                if (isAllPlayers && statType === 'injury_status') {
+                    statSelect.value = initialFormState.statSelect;
+                }
+            }
+            if (trendAddOption) {
+                trendAddOption.disabled = !isAllPlayers;
+                if (!isAllPlayers && statType === 'trend_add') {
+                    statSelect.value = initialFormState.statSelect;
+                }
+            }
+            if (trendDropOption) {
+                trendDropOption.disabled = !isAllPlayers;
+                if (!isAllPlayers && statType === 'trend_drop') {
+                    statSelect.value = initialFormState.statSelect;
+                }
+            }
+        };
+
+        // Event listener for alert type selection
+        alertTypeSelect.addEventListener('change', updateFormFields);
+        statSelect.addEventListener('change', () => {
+            const statType = statSelect.value;
+            const specialStats = ['trend_add', 'trend_drop', 'injury_status'];
+            if (specialStats.includes(statType)) {
+                setAlertButton.textContent = 'Set Alert';
+                editingAlertId = null;
+            }
+            updateFormFields();
+        });
+
+        playerSelect.addEventListener('change', updateFormFields);
+
+
+        // This is a placeholder function for sending an SMS
+        const sendSms = (to, body) => {
+            console.log(`Sending SMS to ${to}: ${body}`);
+            // In a real application, you would make an API call to a service like Twilio here.
+        };
+
+        // Function to add or update an alert
+        const addAlert = async (e) => {
+            e.preventDefault();
+            const statType = statSelect.value;
+            let selectedAlertType = alertTypeSelect.value;
+            const specialStats = ['trend_add', 'trend_drop', 'injury_status'];
+            if (specialStats.includes(statType)) {
+                selectedAlertType = 'change';
+            }
+            
+            if (!db || !userId || !playerSelect.value || !statType) {
+                displayMessage('Please select a player and stat.');
+                return;
+            }
+
+            // Handle invalid alert settings for All Players
+            const isAllPlayers = playerSelect.value === 'all-players';
+            const playerSpecificStats = ['injury_status', 'trend_add', 'trend_drop'];
+            if (isAllPlayers && playerSpecificStats.includes(statType)) {
+                displayMessage(`You cannot set a "${statType.replace('_', ' ')}" alert for all players.`);
+                return;
+            }
+
+            // Save or update the user's phone number
+            if (phoneNumberInput.value) {
+                const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/profile`, 'phoneNumber');
+                await setDoc(userProfileRef, { phoneNumber: phoneNumberInput.value });
+            }
+
+            const alertsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/alerts`);
+            const playerId = playerSelect.value;
+            const player = allPlayers[playerId] || { full_name: 'All Players', team: '' };
+            try {
+                const newAlert = {
+                    playerId: playerId,
+                    playerName: player.full_name,
+                    team: player.team,
+                    stat: statType,
+                    alertType: selectedAlertType,
+                };
+                
+                if (newAlert.alertType === 'change') {
+                    if (newAlert.stat !== 'injury_status' && newAlert.stat !== 'trend_add' && newAlert.stat !== 'trend_drop') {
+                        newAlert.threshold = parseFloat(thresholdInput.value);
+                        newAlert.changeDirection = changeDirectionSelect.value;
+                        newAlert.changeMethod = changeMethodSelect.value;
+                    }
+                } else if (newAlert.alertType === 'target') {
+                    newAlert.threshold = parseFloat(thresholdInput.value);
+                } else if (newAlert.alertType === 'recurring') {
+                    newAlert.recurringTimeframe = recurringTimeframeSelect.value;
+                }
+
+                if (editingAlertId) {
+                    await updateDoc(doc(db, alertsCollectionRef, editingAlertId), newAlert);
+                    displayMessage(`Alert for ${newAlert.playerName} updated successfully.`);
+                } else {
+                    await addDoc(alertsCollectionRef, newAlert);
+                    
+                    // Build the specific confirmation message
+                    let alertConfirmationMessage = `Alert set for ${newAlert.playerName}. A text message will be sent to your saved phone number.`;
+                    if (newAlert.alertType === 'change' && newAlert.stat !== 'injury_status' && newAlert.stat !== 'trend_add' && newAlert.stat !== 'trend_drop') {
+                        const direction = newAlert.changeDirection === 'increase' ? 'increases' : 'decreases';
+                        const method = newAlert.changeMethod === 'percent' ? '%' : ' units';
+                        alertConfirmationMessage = `Alert set for ${newAlert.playerName}. A text message will be sent to your saved phone number when ${newAlert.playerName}'s ${newAlert.stat.replace('_', ' ')} ${direction} by at least ${newAlert.threshold}${method}.`;
+                    } else if (newAlert.alertType === 'change' && newAlert.stat === 'injury_status') {
+                        alertConfirmationMessage = `Alert set for ${newAlert.playerName}. A text message will be sent to your saved phone number when their injury status changes.`;
+                    } else if (newAlert.alertType === 'target') {
+                        alertConfirmationMessage = `Alert set for ${newAlert.playerName}. A text message will be sent to your saved phone number when ${newAlert.playerName} hits a target of ${newAlert.threshold} in ${newAlert.stat.replace('_', ' ')}.`;
+                    } else if (newAlert.alertType === 'recurring') {
+                        const timeframe = newAlert.recurringTimeframe === 'weekly' ? 'weekly' : 'yearly';
+                        alertConfirmationMessage = `Alert set for ${newAlert.playerName}. A text message with a ${timeframe} update on their ${newAlert.stat.replace('_', ' ')} will be sent to your saved phone number.`;
+                    }
+                    displayMessage(alertConfirmationMessage);
+                }
+                
+                alertForm.reset();
+                searchTermInput.value = '';
+                playerSelect.value = 'all-players';
+                updateFormFields();
+                setAlertButton.textContent = 'Set Alert';
+                editingAlertId = null;
+            } catch (e) {
+                console.error("Error adding alert: ", e);
+                displayMessage("Failed to add alert. Please try again.");
+            }
+        };
+
+        // Function to delete an alert from Firestore
+        const deleteAlert = async (id) => {
+            if (!db || !userId) return;
+            const alertDocRef = doc(db, `artifacts/${appId}/users/${userId}/alerts`, id);
+            try {
+                await deleteDoc(alertDocRef);
+                displayMessage('Alert deleted.');
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+                displayMessage("Failed to delete alert. Please try again.");
+            }
+        };
+        
+        // Function to load an existing alert for editing
+        const editAlert = (alertId) => {
+            const alertToEdit = activeAlerts.find(alert => alert.id === alertId);
+            if (!alertToEdit) return;
+
+            editingAlertId = alertId;
+            setAlertButton.textContent = 'Update Alert';
+            
+            // Set form values
+            searchTermInput.value = '';
+            playerSelect.value = alertToEdit.playerId;
+            statSelect.value = alertToEdit.stat;
+
+            if (alertToEdit.stat === 'trend_add' || alertToEdit.stat === 'trend_drop' || alertToEdit.stat === 'injury_status') {
+                statSelect.value = alertToEdit.stat;
+            } else {
+                alertTypeSelect.value = alertToEdit.alertType;
+                if (alertToEdit.alertType === 'change') {
+                    changeDirectionSelect.value = alertToEdit.changeDirection;
+                    changeMethodSelect.value = alertToEdit.changeMethod;
+                    thresholdInput.value = alertToEdit.threshold;
+                } else if (alertToEdit.alertType === 'target') {
+                    thresholdInput.value = alertToEdit.threshold;
+                } else if (alertToEdit.alertType === 'recurring') {
+                    recurringTimeframeSelect.value = alertToEdit.recurringTimeframe;
+                }
+            }
+            updateFormFields();
+            
+            // Re-render select options to show player if not already in dropdown
+            if (alertToEdit.playerId !== 'all-players' && !playerSelect.querySelector(`option[value="${alertToEdit.playerId}"]`)) {
+                const playerOption = document.createElement('option');
+                playerOption.value = alertToEdit.playerId;
+                playerOption.textContent = `${alertToEdit.playerName} (${alertToEdit.team || 'FA'})`;
+                playerSelect.appendChild(playerOption);
+                playerSelect.value = alertToEdit.playerId;
+            }
+        };
+
+
+        // Event listener for form submission
+        alertForm.addEventListener('submit', addAlert);
+
+        // Event listener for the delete and edit buttons (using event delegation)
+        alertsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const alertId = e.target.getAttribute('data-id');
+                deleteAlert(alertId);
+            } else if (e.target.classList.contains('edit-btn')) {
+                const alertId = e.target.getAttribute('data-id');
+                editAlert(alertId);
+            }
+        });
+
+        // Filter players for the search bar
+        const updatePlayerSelect = () => {
+            const searchTerm = searchTermInput.value.toLowerCase();
+            const filteredPlayers = Object.values(allPlayers).filter(player =>
+                player.full_name?.toLowerCase().includes(searchTerm) ||
+                player.team?.toLowerCase().includes(searchTerm)
+            ).sort((a, b) => a.full_name?.localeCompare(b.full_name));
+
+            playerSelect.innerHTML = '<option value="all-players" selected>All Players</option>';
+            filteredPlayers.slice(0, 50).forEach(player => {
+                const option = document.createElement('option');
+                option.value = player.player_id;
+                option.textContent = `${player.full_name} (${player.team || 'FA'})`;
+                playerSelect.appendChild(option);
+            });
+
+            if (filteredPlayers.length > 50) {
+                playerCountMessage.classList.remove('hidden');
+            } else {
+                playerCountMessage.classList.add('hidden');
+            }
+        };
+        
+        searchTermInput.addEventListener('input', () => {
+            if (searchTermInput.value.length > 0) {
+                searchMessage.classList.remove('hidden');
+            } else {
+                searchMessage.classList.add('hidden');
+            }
+            updatePlayerSelect();
+        });
+
+
+        // Initial Firebase and data setup
+        window.onload = function() {
+            // Function to run async tasks inside onload
+            async function initializeAppAndData() {
+                // Assign DOM elements inside this function
+                messageBox = document.getElementById('messageBox');
+                searchTermInput = document.getElementById('searchTerm');
+                playerSelect = document.getElementById('playerSelect');
+                playerCountMessage = document.getElementById('playerCountMessage');
+                statSelect = document.getElementById('statSelect');
+                alertTypeSelect = document.getElementById('alertTypeSelect');
+                alertTypeDisplay = document.getElementById('alertTypeDisplay');
+                changeDirectionSelect = document.getElementById('changeDirectionSelect');
+                changeMethodSelect = document.getElementById('changeMethodSelect');
+                recurringTimeframeSelect = document.getElementById('recurringTimeframeSelect');
+                trendTypeSelect = document.getElementById('trendTypeSelect');
+                thresholdInput = document.getElementById('thresholdInput');
+                phoneNumberInput = document.getElementById('phoneNumberInput');
+                alertForm = document.getElementById('alertForm');
+                alertsContainer = document.getElementById('alertsContainer');
+                noAlertsMessage = document.getElementById('noAlertsMessage');
+                alertCountSpan = document.getElementById('alertCount');
+                setAlertButton = document.querySelector('#alertForm button[type="submit"]');
+
+                changeDirectionSection = document.getElementById('changeDirectionSection');
+                changeMethodSection = document.getElementById('changeMethodSection');
+                thresholdSection = document.getElementById('thresholdSection');
+                recurringTimeframeSection = document.getElementById('recurringTimeframeSection');
+                trendTypeSection = document.getElementById('trendTypeSection');
+                thresholdLabel = thresholdSection.querySelector('label');
+                searchMessage = document.getElementById('searchMessage');
+            
+                // Initialize Firebase
+                if (Object.keys(firebaseConfig).length > 0) {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    onAuthStateChanged(auth, async function(user) {
+                        if (user) {
+                            userId = user.uid;
+                            isAuthReady = true;
+
+                            // Load user's phone number from their profile
+                            const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/profile`, 'phoneNumber');
+                            const userProfileSnap = await getDoc(userProfileRef);
+                            if (userProfileSnap.exists()) {
+                                phoneNumberInput.value = userProfileSnap.data().phoneNumber;
+                            }
+
+                            // Set up real-time listener for alerts after authentication
+                            const alertsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/alerts`);
+                            onSnapshot(alertsCollectionRef, function(snapshot) {
+                                activeAlerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                                renderAlerts();
+                            }, function(error) {
+                                console.error("Error fetching alerts:", error);
+                                displayMessage("Error loading alerts. Please check the console for details.");
+                            });
+                        } else {
+                            try {
+                                if (initialAuthToken) {
+                                    await signInWithCustomToken(auth, initialAuthToken);
+                                } else {
+                                    await signInAnonymously(auth);
+                                }
+                            } catch (error) {
+                                console.error("Error during authentication:", error);
+                            }
+                        }
+                    });
+                }
+
+                // Fetch all players from Sleeper API
+                try {
+                    const loadingOption = document.createElement('option');
+                    loadingOption.textContent = 'Loading players...';
+                    loadingOption.disabled = true;
+                    playerSelect.appendChild(loadingOption);
+                    const response = await fetch('https://api.sleeper.app/v1/players/nfl');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch players from Sleeper API');
+                    }
+                    const data = await response.json();
+                    allPlayers = data;
+                    playerSelect.removeChild(loadingOption);
+                    updatePlayerSelect();
+                    updateFormFields(); // Initialize form fields
+                } catch (error) {
+                    console.error('Error fetching players:', error);
+                    displayMessage('Error fetching player data. Please try again later.');
+                }
+            }
+
+            initializeAppAndData();
+            
+            // Assign event listeners after the page has loaded
+            alertTypeSelect.addEventListener('change', updateFormFields);
+            statSelect.addEventListener('change', updateFormFields);
+            playerSelect.addEventListener('change', updateFormFields);
+            alertForm.addEventListener('submit', addAlert);
+            alertsContainer.addEventListener('click', function(e) {
+                if (e.target.classList.contains('delete-btn')) {
+                    const alertId = e.target.getAttribute('data-id');
+                    deleteAlert(alertId);
+                } else if (e.target.classList.contains('edit-btn')) {
+                    const alertId = e.target.getAttribute('data-id');
+                    editAlert(alertId);
+                }
+            });
+            searchTermInput.addEventListener('input', () => {
+                if (searchTermInput.value.length > 0) {
+                    searchMessage.classList.remove('hidden');
+                } else {
+                    searchMessage.classList.add('hidden');
+                }
+                updatePlayerSelect();
+            });
+        };
+    </script>
+</body>
+</html>
