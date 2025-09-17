@@ -56,8 +56,8 @@ class Jobs {
 
 	private static function handleScan(?string $shopDomain, array $payload): void
 	{
-		// Placeholder: actual scanning handled in a dedicated service later.
-		// For now just mark as executed.
+		if (!$shopDomain) { return; }
+		Scanner::scanTarget($shopDomain, $payload);
 	}
 
 	private static function handleWeeklyReport(?string $shopDomain): void
